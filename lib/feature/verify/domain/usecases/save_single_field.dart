@@ -1,0 +1,23 @@
+import 'package:chadbot/core/domain/repositories/user_repository.dart';
+import 'package:chadbot/core/errors/failures.dart';
+import 'package:chadbot/core/usecases/usecase.dart';
+import 'package:dartz/dartz.dart';
+
+/// This class is responsible for Signup using Email and Password.
+/// There will be different usecase for EmailLogin because logging in also
+/// needs to check ShowAccount to actually register new PrivateKey.
+class SaveSingleField implements UseCase<void, SingleProfileParam> {
+  UserRepository userRepository;
+  SaveSingleField(this.userRepository);
+
+  @override
+  Future<Either<Failure, void>> call(SingleProfileParam params) async {
+    return userRepository.saveSingleField(params);
+  }
+}
+
+class SingleProfileParam {
+  final String key;
+  final String value;
+  SingleProfileParam(this.key, this.value);
+}
