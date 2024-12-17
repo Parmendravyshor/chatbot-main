@@ -19,23 +19,30 @@ import 'package:sqflite/sqflite.dart';
 /// Bloc for CHhat page
 ///
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
-  List<Message> messageList = [];
   final SharedPrefHelper sharedPrefHelper;
   final EmailSignin emailSignin;
   final GetTextFile getTextFile;
+
+  List<Message> messageList = [];
+  late Database _database;
+  int tried = 0; // To track retries
+  bool isFromException = false;
+
   ChatBloc(
     this.sharedPrefHelper,
     this.emailSignin,
     this.getTextFile,
-  ) : super(ChatSendInitial());
+  ) : super(ChatSendInitial()) {
+    // Handle ChatOpened Event
+    on<ChatOpened>(_onChatOpened);
 
-  late Database _database;
-  int tried = 0;
-  bool isFromException = false;
+    // Handle ChatMessageSent Event
+    on<ChatMessageSent>(_onChatMessageSent);
+  }
 
-  @override
-  Stream<ChatState> mapEventToState(ChatEvent event) async* {
-    if (event is ChatOpened) {
+  /// Event Handler: Load Existing Chat Messages
+  Future<void> _onChatOpened(ChatOpened event, Emitter<ChatState> emit) async {
+    try {
       _database = await DBProvider.db.database;
 
       final List<Map<String, dynamic>> maps = await _database.query('message');
@@ -46,57 +53,73 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         );
       });
 
-      yield ChatSendSuccess(messageList);
-    } else if (event is ChatMessageSent) {
-      tried++;
+      emit(ChatSendSuccess(messageList));
+    } catch (e) {
+      emit(ChatSendFailure("Failed to load chat messages"));
+    }
+  }
 
-      if (isFromException) {
-        isFromException = false;
+  /// Event Handler: Process Sent Messages and Server Response
+  Future<void> _onChatMessageSent(
+      ChatMessageSent event, Emitter<ChatState> emit) async {
+    tried++;
+
+    // Avoid sending duplicate retries caused by exceptions
+    if (isFromException) {
+      isFromException = false;
+    } else {
+      final sentMessage = Message(event.message, 1);
+      messageList.add(sentMessage);
+      emit(ChatSendInProgress(messageList));
+
+      await _database.insert("message", sentMessage.toMap());
+    }
+
+    // Check for token expiration and refresh if needed
+    final expiryTime = DateTime.fromMillisecondsSinceEpoch(
+        int.parse(sharedPrefHelper.getExpiryTime()) * 1000);
+    if (expiryTime.isBefore(DateTime.now())) {
+      await emailSignin(EmailAuthParams(
+        email: sharedPrefHelper.getEmail(),
+        password: sharedPrefHelper.getPassword(),
+        fName: "",
+        lName: "",
+      ));
+    }
+
+    // Attempt to get data from the server
+    try {
+      final response =
+          await getData(event.message, sharedPrefHelper.getIdJwtToken());
+
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        var body = jsonDecode(jsonResponse['body']);
+        var message = body['Answer'];
+
+        final receivedMessage = Message(message, 2);
+        messageList.add(receivedMessage);
+        await _database.insert("message", receivedMessage.toMap());
+
+        emit(ChatSendSuccess(messageList));
       } else {
-        final sentMessage = Message(event.message, 1);
-        messageList.add(sentMessage);
-        yield ChatSendInProgress(messageList);
-        await _database.insert("message", sentMessage.toMap());
-      }
-
-      DateTime expiryTime = DateTime.fromMillisecondsSinceEpoch(
-          int.parse(sharedPrefHelper.getExpiryTime()) * 1000);
-
-      if (expiryTime.isBefore(DateTime.now())) {
-        await emailSignin(EmailAuthParams(
-            email: sharedPrefHelper.getEmail(),
-            password: sharedPrefHelper.getPassword(),
-            fName: "",
-            lName: ""));
-      }
-
-      try {
-        final response =
-            await getData(event.message, sharedPrefHelper.getIdJwtToken());
-        if (response.statusCode == 200) {
-          try {
-            var jsonResponse = convert.jsonDecode(response.body);
-            var body = convert.jsonDecode(jsonResponse['body']);
-            var message = body['Answer'];
-            final receivedMessage = Message(message, 2);
-            messageList.add(receivedMessage);
-            await _database.insert("message", receivedMessage.toMap());
-
-            yield ChatSendSuccess(messageList);
-          } catch (e) {}
+        // Retry logic
+        if (tried % 3 != 0) {
+          isFromException = true;
+          add(event);
         } else {
-          if (tried % 3 != 0) {
-            isFromException = true;
-            add(event);
-          }
+          emit(ChatSendFailure("Failed to get response after retries."));
         }
-      } catch (e) {
-        print(e.toString());
       }
+    } on TimeoutException {
+      emit(ChatSendFailure("Request timed out. Please try again."));
+    } catch (e) {
+      emit(ChatSendFailure("An unexpected error occurred: ${e.toString()}"));
     }
   }
 }
 
+/// API Call to fetch data
 Future<http.Response> getData(String question, String jwtToken) {
   return http
       .post(
@@ -105,7 +128,8 @@ Future<http.Response> getData(String question, String jwtToken) {
       "Content-Type": "application/json; charset=UTF-8",
     },
     body: jsonEncode(
-        <String, String>{"utterance": question, "jwttoken": jwtToken}),
+      <String, String>{"utterance": question, "jwttoken": jwtToken},
+    ),
   )
       .timeout(Duration(seconds: 30), onTimeout: () {
     throw TimeoutException("timeout occurred");

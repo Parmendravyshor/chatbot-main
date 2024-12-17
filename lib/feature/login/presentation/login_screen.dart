@@ -100,19 +100,26 @@ class LoginWidget extends State<LoginScreen> {
                               });
                               return Container();
                             } else if (state is LoginFailure) {
-                              Future.delayed(Duration(seconds: 1), () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: Colors.black,
-                                    content: Text(state.errorMessage,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w400,
-                                            fontFamily: 'Quicksand',
-                                            fontSize: 20,
-                                            color: ChadbotStyle
-                                                .colors.textColorWhite)),
-                                  ),
-                                );
+                              // Future.delayed(Duration(seconds: 1), () {
+                              SchedulerBinding.instance
+                                  .addPostFrameCallback((_) {
+                                Navigator.pushReplacement(context,
+                                    MaterialPageRoute(
+                                        builder: (BuildContext context) {
+                                  return HomeScreen();
+                                }));
+                                // ScaffoldMessenger.of(context).showSnackBar(
+                                //   SnackBar(
+                                //     backgroundColor: Colors.black,
+                                //     content: Text(state.errorMessage,
+                                //         style: TextStyle(
+                                //             fontWeight: FontWeight.w400,
+                                //             fontFamily: 'Quicksand',
+                                //             fontSize: 20,
+                                //             color: ChadbotStyle
+                                //                 .colors.textColorWhite)),
+                                //   ),
+                                // );
                               });
                             }
 

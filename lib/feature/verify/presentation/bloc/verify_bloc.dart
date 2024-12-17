@@ -20,23 +20,31 @@ class VerifyBloc extends Bloc<VerifyEvent, VerifyState> {
   final SaveProfile saveProfile;
   final CreateProfile createProfile;
 
-  VerifyBloc(this._resendCode, this._verifyCode, this.emailSignin,
-      this.saveProfile, this.createProfile)
-      : super(VerifyInitial());
+  VerifyBloc(
+    this._resendCode,
+    this._verifyCode,
+    this.emailSignin,
+    this.saveProfile,
+    this.createProfile,
+  ) : super(VerifyInitial()) {
+    // Handle Code Entered Event
+    on<CodeEntered>((event, emit) async {
+      emit(VerifyOtpInProgress());
 
-  @override
-  Stream<VerifyState> mapEventToState(VerifyEvent event) async* {
-    if (event is CodeEntered) {
-      yield VerifyOtpInProgress();
       final res = await _verifyCode(VerifyParams(event.code, event.email));
       if (res.isRight()) {
-        final result = await emailSignin(EmailAuthParams(
+        final result = await emailSignin(
+          EmailAuthParams(
             email: event.email,
             password: event.password,
             fName: "",
-            lName: ""));
+            lName: "",
+          ),
+        );
+
         if (result.isRight()) {
           final create = await createProfile(NoParams());
+
           if (create.isRight()) {
             await saveProfile(ProfileParams(
               email: event.email,
@@ -47,22 +55,27 @@ class VerifyBloc extends Bloc<VerifyEvent, VerifyState> {
               chadbotGender: "",
             ));
           }
-          yield VerifyOtpSuccess();
+
+          emit(VerifyOtpSuccess());
         } else {
-          yield VerifyOtpFailure(
-              "Something wrong happened..please try again later");
+          emit(VerifyOtpFailure(
+              "Something wrong happened..please try again later"));
         }
       } else {
-        yield VerifyOtpFailure("Invalid OTP code");
+        emit(VerifyOtpFailure("Invalid OTP code"));
       }
-    } else if (event is ResendButtonTapped) {
-      yield ResendOtpInProgress();
+    });
+
+    // Handle Resend Button Tapped Event
+    on<ResendButtonTapped>((event, emit) async {
+      emit(ResendOtpInProgress());
+
       final res = await _resendCode(event.email);
       if (res.isRight()) {
-        yield ResendOtpSuccess();
+        emit(ResendOtpSuccess());
       } else {
-        yield ResendOtpFailure("Resend OTP failed.. please try again later");
+        emit(ResendOtpFailure("Resend OTP failed.. please try again later"));
       }
-    }
+    });
   }
 }

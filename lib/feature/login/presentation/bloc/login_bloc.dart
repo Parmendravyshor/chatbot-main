@@ -20,57 +20,69 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   final CreateProfile createProfile;
 
   LoginBloc(
-      this._emailSignin, this._resendCode, this.getprofile, this.createProfile)
-      : super(LoginInitial());
-  String email = "";
-  String password = "";
-
-  @override
-  Stream<LoginState> mapEventToState(LoginEvent event) async* {
-    if (event is EmailChanged) {
+    this._emailSignin,
+    this._resendCode,
+    this.getprofile,
+    this.createProfile,
+  ) : super(LoginInitial()) {
+    // Handle Email Change
+    on<EmailChanged>((event, emit) {
       if (event.email.isNotEmpty && EmailValidator.validate(event.email)) {
         email = event.email;
       } else {
         email = "";
       }
-      bool isValidated = _isFormValid();
-      if (isValidated) {
-        yield LoginFormValidationSuccess();
-      } else {
-        yield LoginFormValidationFailure();
-      }
-    } else if (event is PasswordChanged) {
+      _validateForm(emit);
+    });
+
+    // Handle Password Change
+    on<PasswordChanged>((event, emit) {
       if (event.password.isNotEmpty && event.password.length > 5) {
         password = event.password;
       } else {
         password = "";
       }
-      bool isValidated = _isFormValid();
-      if (isValidated) {
-        yield LoginFormValidationSuccess();
-      } else {
-        yield LoginFormValidationFailure();
-      }
-    } else if (event is LoginButtonTapped) {
-      yield LoginInProgress();
-      final result = await _emailSignin.call(EmailAuthParams(
-          email: email, password: password, fName: "Tes", lName: "Test"));
-      yield* result.fold((l) async* {
-        if (l is UserNotConfirmedFailure) {
-          final res = await _resendCode(email);
-          if (res.isRight()) {
-            yield VerificationNeeded();
+      _validateForm(emit);
+    });
+
+    // Handle Login Button Tap
+    on<LoginButtonTapped>((event, emit) async {
+      emit(LoginInProgress());
+
+      final result = await _emailSignin.call(
+        EmailAuthParams(
+            email: email, password: password, fName: "Tes", lName: "Test"),
+      );
+
+      await result.fold(
+        (failure) async {
+          if (failure is UserNotConfirmedFailure) {
+            final res = await _resendCode(email);
+            if (res.isRight()) {
+              emit(VerificationNeeded());
+            } else {
+              emit(LoginFailure("Resend code failed..please try again."));
+            }
           } else {
-            yield LoginFailure("Signin failed..please try again.. $l");
+            emit(LoginFailure("Signin failed..please try again.. $failure"));
           }
-        } else {
-          yield LoginFailure("Signin failed..please try again.. $l");
-        }
-        //yield LoginFailure("Signin failed..please try again.. $l");
-      }, (r) async* {
-        await getprofile(NoParams());
-        yield LoginSuccess();
-      });
+        },
+        (_) async {
+          await getprofile(NoParams());
+          emit(LoginSuccess());
+        },
+      );
+    });
+  }
+
+  String email = "";
+  String password = "";
+
+  void _validateForm(Emitter<LoginState> emit) {
+    if (_isFormValid()) {
+      emit(LoginFormValidationSuccess());
+    } else {
+      emit(LoginFormValidationFailure());
     }
   }
 
