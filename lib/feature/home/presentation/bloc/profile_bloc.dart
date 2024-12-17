@@ -10,13 +10,63 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final SharedPrefHelper sharedPrefHelper;
   final SaveProfile saveProfile;
-  ProfileBloc(this.sharedPrefHelper, this.saveProfile)
-      : super(ProfileSaveInitial());
 
-  @override
-  Stream<ProfileState> mapEventToState(ProfileEvent event) async* {
-    if (event is ProfileOpened) {
-    } else if (event is SubmitProfileTapped) {
+  ProfileBloc(this.sharedPrefHelper, this.saveProfile)
+      : super(ProfileSaveInitial()) {
+    // Registering event handlers
+    on<ProfileOpened>(_onProfileOpened);
+    on<SubmitProfileTapped>(_onSubmitProfileTapped);
+  }
+
+  /// Handler for ProfileOpened Event
+  Future<void> _onProfileOpened(
+      ProfileOpened event, Emitter<ProfileState> emit) async {
+    // emit(ProfileLoading());
+    try {
+      final email = sharedPrefHelper.getEmail();
+      final chadbotName = sharedPrefHelper.getStringByKey(
+          ChadbotConstants.chadbotName, "Chadbot");
+      final chadbotGender =
+          sharedPrefHelper.getStringByKey(ChadbotConstants.chadbotGender, "");
+      final contextlen =
+          sharedPrefHelper.getIntByKey(ChadbotConstants.contextlen, 7);
+      final contextprune =
+          sharedPrefHelper.getIntByKey(ChadbotConstants.contextprune, 0);
+      final contextoff =
+          sharedPrefHelper.getBoolByKey(ChadbotConstants.contextoff, false);
+      final contextrand =
+          sharedPrefHelper.getBoolByKey(ChadbotConstants.contextrand, false);
+      final debug =
+          sharedPrefHelper.getBoolByKey(ChadbotConstants.debug, false);
+
+      // Build ProfileParams
+      final profileParams = ProfileParams(
+        email: email,
+        fname: "",
+        lname: "",
+        phone: "",
+        chadbotGender: chadbotGender,
+        chadbotname: chadbotName,
+        contextlen: contextlen,
+        contextprune: contextprune,
+        contextoff: contextoff,
+        contextrand: contextrand,
+        debug: debug,
+      );
+
+      // emit(ProfileLoadSuccess(profileParams));
+    } catch (e) {
+      // emit(ProfileLoadFailure("Failed to load profile: ${e.toString()}"));
+    }
+  }
+
+  /// Handler for SubmitProfileTapped Event
+  Future<void> _onSubmitProfileTapped(
+      SubmitProfileTapped event, Emitter<ProfileState> emit) async {
+    emit(ProfileSaveInProgress());
+
+    try {
+      // Building profile parameters from shared preferences and event data
       ProfileParams profileParams = ProfileParams(
         email: sharedPrefHelper.getEmail(),
         fname: event.fname,
@@ -38,12 +88,13 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       );
 
       final result = await saveProfile(profileParams);
-      if (result.isRight()) {
-        print("profileeee saveddd");
-      } else {
-        print("profileeee faileddd");
-      }
-      yield ProfileSaveSuccess();
+
+      result.fold(
+        (failure) => emit(ProfileSaveFailure("Failed to save profile.")),
+        (success) => emit(ProfileSaveSuccess()),
+      );
+    } catch (e) {
+      emit(ProfileSaveFailure("Error occurred: ${e.toString()}"));
     }
   }
 }

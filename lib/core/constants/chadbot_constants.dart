@@ -1,14 +1,10 @@
 class ChadbotConstants {
-  static String profilepost = "5pn32u0f26.execute-api.us-east-2.amazonaws.com";
-  static String profilecreate =
-      "2uwxvrko63.execute-api.us-east-2.amazonaws.com";
-  static String profileget = "5s3gf0ooq6.execute-api.us-east-2.amazonaws.com";
-  static String profiledelete =
-      "0mpftipkkl.execute-api.us-east-2.amazonaws.com";
-  static String contextDelete =
-      "4demxqqnyk.execute-api.us-east-2.amazonaws.com";
-  static String modelendpoint =
-      "xhcz7a3myc.execute-api.us-east-2.amazonaws.com";
+  static String profilepost = "";
+  static String profilecreate = "";
+  static String profileget = "";
+  static String profiledelete = "";
+  static String contextDelete = "";
+  static String modelendpoint = "";
 
   static String profileCreatePath = "chadbotprofilecreate";
   static String profileGetPath = "chadbotprofileget";
@@ -26,9 +22,8 @@ class ChadbotConstants {
   static String password = "password";
   static String idjwtToken = "idjwtToken";
 
-  static String clientsecret =
-      "10spa111h77itvr6qnsl41mqi9fu2mvg76b0drclt4uddnplr4ik";
-  static String githubdomain = "exfzkwry7l.execute-api.us-east-2.amazonaws.com";
+  static String clientsecret = "";
+  static String githubdomain = "";
   static String githubendpoint = "issues";
   static String accessToken = "accessToken";
 

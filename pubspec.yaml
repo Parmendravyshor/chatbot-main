@@ -51,7 +51,7 @@ dependencies:
   screenshot: 
   sqflite: ^2.4.0
   device_info_plus: ^9.0.2
-
+  local_auth:
 
 dev_dependencies:
   flutter_test:

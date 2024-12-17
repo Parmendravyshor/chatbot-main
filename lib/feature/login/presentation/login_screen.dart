@@ -18,6 +18,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kiwi/kiwi.dart';
 import 'package:chadbot/core/widgets/logo.dart' as logo;
 
+import '../../bio_metric_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   @override
   LoginWidget createState() => LoginWidget();
@@ -106,7 +108,8 @@ class LoginWidget extends State<LoginScreen> {
                                 Navigator.pushReplacement(context,
                                     MaterialPageRoute(
                                         builder: (BuildContext context) {
-                                  return HomeScreen();
+                                  return BiometricAuthScreen();
+                                  ;
                                 }));
                                 // ScaffoldMessenger.of(context).showSnackBar(
                                 //   SnackBar(

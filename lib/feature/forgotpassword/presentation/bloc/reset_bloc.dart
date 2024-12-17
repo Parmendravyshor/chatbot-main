@@ -11,45 +11,67 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class ResetBloc extends Bloc<ResetEvent, ResetState> {
   final SendResetPasswordOtp _sendResetPwdOtp;
   final ResetPassword _resetpwd;
-  ResetBloc(this._sendResetPwdOtp, this._resetpwd) : super(ResetInitial());
-  String name = "";
+
+  ResetBloc(this._sendResetPwdOtp, this._resetpwd) : super(ResetInitial()) {
+    // Registering handlers
+    on<EmailChanged>(_onEmailChanged);
+    on<ResetButtonTapped>(_onResetButtonTapped);
+    on<SetNewPasswordTapped>(_onSetNewPasswordTapped);
+  }
+
   String email = "";
-  String password = "";
   int step = 1;
 
-  @override
-  Stream<ResetState> mapEventToState(ResetEvent event) async* {
-    if (event is EmailChanged) {
-      if (event.email.isNotEmpty && EmailValidator.validate(event.email)) {
-        email = event.email;
-        yield ResetFormValidationSuccess();
-      } else {
-        email = "";
-        yield ResetFormValidationFailure();
-      }
-    } else if (event is ResetButtonTapped) {
-      yield ResetInProgress();
-      final result = await _sendResetPwdOtp.call(email);
-      yield* result.fold((l) async* {
-        yield ResetFailure(
-            "Failed to send reset password link..please try again.");
-      }, (r) async* {
-        step = 2;
-        yield ResetPasswordMessageSent(
-            "Password reset link sent to your email");
-      });
-    } else if (event is SetNewPasswordTapped) {
-      yield ResetInProgress();
-      final result = await _resetpwd.call(SetNewPasswordParams(
-          email: email, otp: event.otp, password: event.password));
-      yield* result.fold((l) async* {
-        yield ResetFailure(
-            "Failed to send reset password link..please try again.");
-      }, (r) async* {
-        step = 2;
-        yield ResetPasswordMessageSent(
-            "Password reset link sent to your email");
-      });
+  /// Handler for EmailChanged Event
+  Future<void> _onEmailChanged(
+      EmailChanged event, Emitter<ResetState> emit) async {
+    if (event.email.isNotEmpty && EmailValidator.validate(event.email)) {
+      email = event.email;
+      emit(ResetFormValidationSuccess());
+    } else {
+      email = "";
+      emit(ResetFormValidationFailure());
     }
+  }
+
+  /// Handler for ResetButtonTapped Event
+  Future<void> _onResetButtonTapped(
+      ResetButtonTapped event, Emitter<ResetState> emit) async {
+    emit(ResetInProgress());
+    final result = await _sendResetPwdOtp.call(email);
+
+    result.fold(
+      (failure) {
+        emit(ResetFailure(
+            "Failed to send reset password link. Please try again."));
+      },
+      (success) {
+        step = 2;
+        emit(
+            ResetPasswordMessageSent("Password reset link sent to your email"));
+      },
+    );
+  }
+
+  /// Handler for SetNewPasswordTapped Event
+  Future<void> _onSetNewPasswordTapped(
+      SetNewPasswordTapped event, Emitter<ResetState> emit) async {
+    emit(ResetInProgress());
+
+    final result = await _resetpwd.call(SetNewPasswordParams(
+      email: email,
+      otp: event.otp,
+      password: event.password,
+    ));
+
+    result.fold(
+      (failure) {
+        emit(ResetFailure("Failed to reset password. Please try again."));
+      },
+      (success) {
+        emit(ResetPasswordMessageSent(
+            "Password reset successfully. You can now log in."));
+      },
+    );
   }
 }
