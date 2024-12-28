@@ -52,7 +52,11 @@ dependencies:
   sqflite: ^2.4.0
   device_info_plus: ^9.0.2
   local_auth:
-
+  
+  tflite_flutter: ^0.9.0
+  firebase_ml_model_downloader: ^0.3.0
+  speech_to_text: ^4.2.1
+ 
 dev_dependencies:
   flutter_test:
     sdk: flutter
